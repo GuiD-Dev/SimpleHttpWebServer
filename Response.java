@@ -8,36 +8,43 @@ import java.nio.file.Files;
 
 public class Response {
     
-    public String head;
+    public String request;
     public String contentType;
     public String server;
     public String connection;
     public String contentLength;
-    public Boolean keepAlive;
+    public String keepAlive;
 
-    Socket socket;
-    private InputStream fluxoIn;
+    private Socket socket;
     private OutputStream fluxoOut;
+    private String firstLine;
 
     public Response(Socket socket) throws Exception {
         this.socket = socket;
-        this.fluxoIn = socket.getInputStream();
         this.fluxoOut = socket.getOutputStream();
         
-        BufferedReader entrada = new BufferedReader(new InputStreamReader(fluxoIn));
-        this.head = entrada.readLine();
+        BufferedReader entrada = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+        this.firstLine = entrada.readLine();
+        
+        String line = this.firstLine;
+        while (!line.isEmpty()) {
+            //System.out.println(line);
+            line = entrada.readLine();
+        }
     }
 
     public void getResponse() throws Exception {
         byte[] content = getContent(getDirectory());
         
-        StringBuilder builder = new StringBuilder();
-        builder.append("HTTP/1.1 200 OK\n");
-        builder.append("Content-Type: text/html\n");
-        builder.append("Content-Length: " + content.length + "\n");
-        builder.append("Keep-Alive: timeout=10, max=1000\n\n");
+        StringBuilder header = new StringBuilder();
+        header.append(request + "\n");
+        header.append("Content-Type: " + contentType + "\n");
+        header.append("Content-Length: " + content.length + "\n");
+        header.append("Connection: " + connection + "\n\n");
+
+        System.out.println(header.toString());
         
-        fluxoOut.write(builder.toString().getBytes());
+        fluxoOut.write(header.toString().getBytes());
         fluxoOut.write(content);
         fluxoOut.flush();
     }
@@ -49,14 +56,14 @@ public class Response {
         try {
             retorno = Files.readAllBytes(new File(path).toPath());
         } catch (Exception ex) {
-            retorno = getContent("Content/home.html");
+            retorno = getContent("www/notfound.html");
         }
 
         return retorno;
     }
     
     public String getDirectory() {
-        return "Content" + head.split(" ")[1];
+        return "www" + firstLine.split(" ")[1];
     }
 }
 
@@ -67,4 +74,4 @@ Content-Type: text/html; charset=utf-8
 Server: Microsoft-IIS/8.5
 Connection: close
 Content-Length: 211618
-*/  
+*/
